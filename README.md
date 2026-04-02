@@ -722,16 +722,9 @@ All recommendations in this framework emphasize Infrastructure-as-Code (Bicep, A
 
 ### **NIA/NCSA Compliance**
 
-**Certification Details:**
-- **Certificate Holder:** Microsoft Azure Qatar Program
-- **Standard:** NIA V2.0 (National Information Assurance, Qatar)
-- **Certificate ID:** 10018
-- **Issued:** 29 August 2023
-- **Valid Until:** 28 August 2026
-- **Certification Body:** Qatar National Cyber Security Agency (NCSA)
-- **Accredited Auditor:** Forvis Mazars LLC
+**Microsoft Azure Qatar Program holds NIA V2.0 compliance certificate (Certificate ID: 10018) from Qatar's National Cyber Security Agency (NCSA).**
 
-**Scope — Certified Regions:**
+**Certified Regions:**
 1. ✅ **Qatar Central (Doha)** — Primary region
 2. ✅ **West Europe (Amsterdam)** — NIA-certified DR region
 3. ✅ **North Europe (Dublin)** — NIA-certified DR region
@@ -740,9 +733,6 @@ All recommendations in this framework emphasize Infrastructure-as-Code (Bicep, A
 - ❌ Sweden Central (used for Azure Backup RoC)
 - ❌ Switzerland North (used for Azure Backup RoC)
 - ❌ UAE North, East US, other regions
-
-**Compliance Statement:**
-> "This single, consolidated certificate confirms all three regions (Qatar Central, West Europe, North Europe) meet Qatar Information Security Management System (ISMS) requirements per NIA V2.0 standards."
 
 **Implications for DR Region Selection:**
 
@@ -1178,8 +1168,10 @@ This framework is based on:
 
 ---
 
-🚀 **Ready to assess your Azure environment? Run the assessment now:**
+## BCDR Planning and Assessment Automation Solution Developed by:
 
-```powershell
-.\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
-```
+**Zahir Hussain Shah**  
+Sr. Solution Engineer, Cloud & AI - Infrastructure  
+Microsoft Qatar
+
+---
