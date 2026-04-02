@@ -165,8 +165,27 @@ Install-Module -Name ImportExcel -Scope CurrentUser -Force
 
 ## ⚡ Quick Start
 
-### **Single-Command Execution (Recommended)**
+### **1. Clone Repository to Local Machine**
 
+```powershell
+git clone https://github.com/zhshah/BCDR-Planning-Assessment-Report.git
+cd BCDR-Planning-Assessment-Report
+```
+
+### **2. Run Assessment - Single-Command Execution (Recommended)**
+
+**Option A: Let the script prompt for customer name interactively**
+```powershell
+.\Start-AzureBCDRAssessment.ps1
+```
+The script will ask for the customer name during execution.
+
+**Option B: Provide customer name as parameter**
+```powershell
+.\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization"
+```
+
+**Option C: Provide customer name and tenant ID (for multi-tenant scenarios)**
 ```powershell
 .\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
 ```
