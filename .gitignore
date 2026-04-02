@@ -1,0 +1,45 @@
+# Assessment Output Folders (Contains Customer Data)
+CompleteBCDRAssessment_*/
+AzureZoneAssessment_*/
+
+# Excel and CSV Output Files
+*.xlsx
+*.csv
+*.html
+
+# Log Files
+*.log
+*.txt
+
+# Customer Assessment Reports
+Customer_Assessment_Report/
+
+# Documentation and Reference Materials
+Share/
+
+# Version History Folders
+Version_*/
+
+# Legacy Scripts
+Get-AzureZoneRedundancyAndDRAssessment.ps1
+Test-UpdatedWorkflow.ps1
+WORKFLOW_UPDATE_SUMMARY.md
+
+# Backup Files
+*.bak
+*~
+
+# Windows System Files
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary Files
+*.tmp
+*.temp
+
+# VS Code
+.vscode/
+
+# PowerShell Module Cache
+PSReadLine/
