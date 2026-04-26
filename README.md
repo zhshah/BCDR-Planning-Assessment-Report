@@ -3,7 +3,7 @@
 ![Azure](https://img.shields.io/badge/Azure-0078D4?style=flat&logo=microsoft-azure&logoColor=white)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat&logo=powershell&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Version](https://img.shields.io/badge/Version-1.0-blue.svg)
+![Version](https://img.shields.io/badge/Version-2.0-blue.svg)
 
 **Comprehensive Business Continuity and Disaster Recovery (BCDR) Assessment Tool for Azure Environments**
 
@@ -20,17 +20,19 @@ This automated framework provides **end-to-end BCDR assessment** for Azure subsc
 - **Cross-region disaster recovery** strategy design
 - **Smart workload tier classification** for cost-optimized DR planning
 
-**⚠️ CRITICAL GUIDANCE:** This framework **emphasizes cross-region disaster recovery** over reliance on availability zones alone. While availability zones provide in-region high availability, they do NOT protect against region-wide failures, natural disasters, or geo-political events. **Cross-region DR is mandatory** for business-critical workloads, especially in regions with constraints like Qatar Central (no paired region) or where zone redundancy is restricted.
+> ⚠️ **CRITICAL GUIDANCE:** This framework **emphasizes cross-region disaster recovery** over reliance on availability zones alone. Availability zones do NOT protect against region-wide failures. **Cross-region DR is essential** for business-critical workloads — especially in Qatar Central where zone redundancy is restricted and there is no Azure-designated paired region.
+
+> 📌 **ADVISORY NOTE:** All recommendations, priorities, criticality labels, workload tier classifications, RPO/RTO targets, effort estimates, and cost estimates produced by this tool are **suggestions only**. Microsoft does not prescribe or mandate any BCDR approach. The customer decides which workloads require DR, what strategies to implement, acceptable RTO/RPO, DR region of choice, implementation timeline, and budget. Always validate suggestions against your own business requirements, compliance obligations, and risk tolerance.
 
 ---
 
 ## 📋 Table of Contents
 
+- [What's New in v2.0](#-whats-new-in-v20)
 - [Key Features](#-key-features)
 - [Architecture](#-architecture)
 - [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
-- [What Each Phase Does](#-what-each-phase-does)
 - [Output Reports](#-output-reports)
 - [Assessment Methodology](#-assessment-methodology)
 - [Qatar-Specific Compliance](#-qatar-specific-compliance)
@@ -41,65 +43,105 @@ This automated framework provides **end-to-end BCDR assessment** for Azure subsc
 
 ---
 
+## 🆕 What's New in v2.0
+
+### **Dashboard — Microsoft Design System Overhaul**
+- Full Microsoft-branded UI with CSS custom properties (`--ms-blue`, `--ms-navy`)
+- Top bar with Microsoft SVG logo and generation timestamp
+- Redesigned header with 4 live stat tiles (Zone Redundant / Non-Zonal / Locally Redundant / Subscriptions)
+- 6 summary cards with dual-label system: business-friendly name + technical badge + scope pill
+- 3 new charts: **NonZonal Breakdown** (top 12 resource types), **IaaS/PaaS/Platform Split**, **Subscription Risk Score** (0–100 normalized)
+- Cross-Region Replication card replaced with a 4-row mutually exclusive breakdown table (Geo-Redundant / Global-Multi-Region / Single-Region / Needs Manual Check) with a ∑ Total row for verification
+- Professional navy footer with Azure docs link and disclaimer
+
+### **Excel Report — 16 Sheets (was 12)**
+- **P2_Actions** sheet added — suggested P2 (High) priority resources
+- **P3_Actions** sheet added — suggested P3 (Medium/Dev-Test reduced) priority resources
+- **VM_Zone_Planner** now includes a yellow legend row (row 2) explaining why `LogicalZones` / `PhysicalZones` are empty (expected for Qatar Central where customer-accessible AZs are blocked)
+- `FreezePanes` updated to row 3 in VM_Zone_Planner to keep both header and legend visible
+
+### **"Suggested" Language Throughout — No Dictating**
+All SA_ recommendation columns are now clearly marked as suggestions:
+
+| Column | Example Value |
+|--------|--------------|
+| `SA_WorkloadTier` | `(Suggested) Production` |
+| `SA_Criticality` | `Critical (Suggested)` |
+| `SA_Priority` | `P1 (Suggested — Confirm with Customer)` |
+| `SA_BCDRStrategy` | `(Suggested) Active-Passive (Warm Standby)` |
+| `SA_DRRegionChoice` | `(Customer to confirm) West Europe ...` |
+| `SA_DRMethod` | `(Suggested) Azure Site Recovery (ASR)` |
+| `SA_RPO` | `(Suggested target) < 1 hour` |
+| `SA_RTO` | `(Suggested target) < 30 min` |
+| `SA_ImplementationEffort` | `(Estimated) High` |
+| `SA_CostImpact` | `(Estimated) Medium` |
+| `SA_ActionRequired` | `⚠️ ADVISORY — Suggested actions only. Customer must review and confirm...` |
+| `SA_ZoneTransitionPath` | `(Suggested) Step 1: ...` |
+
+### **Color-Coded SA_WorkloadTier Cells**
+- 🟢 Green: `(Suggested) Production`
+- 🟠 Orange: `(Suggested) Production (Assumed)` — uncertain, needs customer review
+- 🟡 Yellow: `(Suggested) Non-Production`
+- 🔵 Blue: `(Suggested) Dev/Test`
+- ⚫ Gray: `(Suggested) Sandbox`
+
+### **Softened Advisory Language**
+- All `MANDATORY` and `Must Be` language replaced with recommended/suggested phrasing throughout action guidance
+- Console output now shows P2 and P3 counts alongside P1 at completion
+
+---
+
 ## 🚀 Key Features
 
 ### ✅ **2-Phase Automated Assessment Workflow**
 - **Single command execution** orchestrates both phases automatically
-- **Phase 1:** Resource collection, zone redundancy analysis, cross-region readiness
-- **Phase 2:** BCDR recommendation enrichment with SA guidance, RPO/RTO targets, cost analysis
+- **Phase 1:** Resource collection, zone redundancy analysis, cross-region readiness, HTML dashboard
+- **Phase 2:** BCDR recommendation enrichment — SA guidance, RPO/RTO, cost analysis, 16-sheet Excel report
 
-### ✅ **Smart Workload Tier Classification** 🆕
+### ✅ **Smart Workload Tier Classification**
 Automatically detects environment type to optimize DR costs:
 - **Production** → Active-Passive (Warm Standby) or Active-Active strategies
 - **Non-Production** → Backup & Restore
-- **Dev/Test** → Backup & Restore (Cost-Optimized) with 24h RPO acceptable
+- **Dev/Test** → Backup & Restore (Cost-Optimized) — 24h RPO acceptable
 - **Sandbox** → No DR Required (Recreate from IaC) — Zero DR cost
+- **Production (Assumed)** → Production strategy + ⚠️ warning to confirm
 
-**Detection Method:** 4-priority hierarchy
-1. Subscription name analysis (High confidence)
-2. Resource tags: Environment, Tier, Stage, Workload (Medium confidence)
-3. Resource group naming patterns (Low confidence)
+**Detection Priority (4-level hierarchy):**
+1. Subscription name (High confidence)
+2. Resource tags: `Environment`, `Tier`, `Stage`, `Workload`, `AppTier` (Medium confidence)
+3. Resource group name patterns (Low confidence)
 4. Resource name patterns (Lowest confidence)
 
-**Cost Impact:** Potential **96% DR cost reduction** for non-production workloads by avoiding expensive ASR, SQL Failover Groups, or AKS warm standby for dev/test environments.
+**Cost Impact:** Potential **96% DR cost reduction** for non-production workloads by avoiding expensive ASR replications and warm standby clusters.
 
-### ✅ **Comprehensive 12-Sheet Excel Report**
-1. **Introduction** — Assessment methodology, tier detection logic, priority assignment criteria
-2. **Executive Summary** — Key findings, Qatar constraints, top recommendations
-3. **SA_Recommendations** — Full resource inventory (339+ resources) with per-service BCDR guidance
-4. **QuickWins** — Low-effort, high-value actions (e.g., enable ACR geo-replication, configure object replication)
-5. **P1_Critical_Actions** — Suggested highest-priority resources (customer validation required)
-6. **Summary_ByResourceType** — Aggregated DR gap analysis by Azure service type
-7. **Summary_BySubscription** — Subscription-level DR readiness overview
-8. **Timeline_ActionPlan** — Phased implementation roadmap (Foundation → Quick Wins → P1 → P2/P3)
-9. **DR_Testing_Plan** — Quarterly DR testing template with success criteria and rollback procedures
-10. **Dependencies_Matrix** — Service dependency mapping extracted from real environment data
-11. **Compliance_Checklist** — Qatar PDPPL & NIA/NCSA compliance tracker with DPO sign-off
-12. **BCDR_Strategy_Reference** — Complete DR strategy design patterns guide with Qatar constraints
+### ✅ **Comprehensive 16-Sheet Excel Report**
+1. **Introduction** — Methodology, tier detection logic, priority criteria, filtering tips
+2. **Executive_Summary** — Key findings, Qatar constraints, top recommendations
+3. **SA_Recommendations** — Full resource inventory with all SA_ guidance (main working sheet)
+4. **QuickWins** — Low-effort, high-value actions
+5. **P1_Critical_Actions** — Suggested P1 (Critical) resources — customer to confirm
+6. **P2_Actions** — Suggested P2 (High) resources — customer to confirm 🆕
+7. **P3_Actions** — Suggested P3 (Medium/Dev-Test) resources — customer to confirm 🆕
+8. **Summary_ByResourceType** — Aggregated DR gap analysis by Azure service type
+9. **Summary_BySubscription** — Subscription-level DR readiness overview
+10. **Timeline_ActionPlan** — Phased implementation roadmap (tentative guidance)
+11. **DR_Testing_Plan** — Quarterly DR testing template with rollback procedures
+12. **Dependencies_Matrix** — Service dependency mapping from real environment data
+13. **Compliance_Checklist** — Qatar PDPPL & NIA/NCSA compliance tracker with DPO sign-off
+14. **BCDR_Strategy_Reference** — Strategy design patterns, Qatar constraints, decision matrix
+15. **VM_Zone_Planner** — Zone transition planner for VMs/AKS/DBs with legend row and color coding
+16. **Risk_Heatmap** — Subscription × Zone Status heatmap with normalized risk scores (0–100)
 
-### ✅ **Interactive HTML Dashboard**
-- **Zone redundancy heatmap** by subscription
-- **Cross-region DR status** visualization
-- **Clickable BCDR report card** with direct Excel report link
-- **Subscription-level statistics** and DR gap summary
+### ✅ **Microsoft-Branded Interactive HTML Dashboard**
+- Zone redundancy distribution by subscription
+- Cross-region DR status (4-category breakdown table with ∑ Total)
+- 9 charts: IaaS/PaaS split, NonZonal breakdown by resource type, Subscription Risk Scores, and more
+- Clickable BCDR report card linking to Excel report
 
-### ✅ **Priority & Criticality Methodology** 🆕
-Transparent, documented classification logic:
+### ✅ **Transparent Priority & Criticality Methodology**
 - **2-Step Process:** Criticality Assessment → Priority Assignment
-- **Input Factors:** Subscription name, resource group, resource name, resource type, zone redundancy status
-- **Output:** P1/P2/P3/P4 priority labels with **(Suggested — Confirm with Customer)** disclaimer
-- **Full Documentation:** Introduction sheet explains exact keyword patterns, resource type criteria, and decision tree
-
-### ✅ **Cross-Region DR Emphasis**
-**This framework prioritizes cross-region disaster recovery** over availability zones because:
-- **Availability zones protect against datacenter failures** (single AZ outage)
-- **Availability zones do NOT protect against:**
-  - Region-wide failures (entire region outage)
-  - Natural disasters (earthquakes, floods affecting entire region)
-  - Geo-political events or compliance changes
-  - Catastrophic infrastructure failures
-- **Qatar Central specific:** Zone redundancy is RESTRICTED (one AZ at full capacity)
-- **Best Practice:** Use zones for in-region HA + cross-region for DR (defense in depth)
+- All labels include **(Suggested — Confirm with Customer)** disclaimer
+- Full decision tree documented in the Introduction sheet of the Excel report
 
 ---
 
@@ -111,31 +153,23 @@ Transparent, documented classification logic:
 └────────────────┬────────────────────────────────────────────────────┘
                  │
                  ├─► PHASE 1: Phase1-CollectResources.ps1
-                 │   ├─ Connect to Azure subscriptions
-                 │   ├─ Query Azure Resource Graph (all resources)
-                 │   ├─ Analyze zone redundancy status per resource
+                 │   ├─ Connect to Azure subscriptions (via Az module)
+                 │   ├─ Query Azure Resource Graph (all resource types)
+                 │   ├─ Analyse zone redundancy status per resource
                  │   ├─ Map logical → physical availability zones
-                 │   ├─ Assess cross-region DR readiness
-                 │   ├─ Extract resource dependencies (VNet, Subnet, KeyVault, Storage)
-                 │   ├─ Export 54 resource type CSV files
+                 │   ├─ Assess cross-region DR readiness (4 categories)
+                 │   ├─ Extract resource dependencies (VNet, KeyVault, Storage)
+                 │   ├─ Export per-resource-type CSV files
                  │   ├─ Generate master inventory CSV
-                 │   └─ Create HTML dashboard with placeholder for Phase 2
+                 │   └─ Build Microsoft-branded HTML dashboard (9 charts)
                  │
                  └─► PHASE 2: Phase2-AddRecommendations.ps1
                      ├─ Load Phase 1 CSV output
-                     ├─ Smart workload tier classification
-                     │   ├─ Detect Production/Non-Prod/Dev-Test/Sandbox
-                     │   ├─ Adjust BCDR strategy based on tier
-                     │   └─ Reduce DR costs for non-production workloads
+                     ├─ Smart workload tier classification (4-level hierarchy)
                      ├─ Apply service-specific DR knowledge base (54 resource types)
-                     │   ├─ Map to BCDR strategies (Active-Active, Active-Passive, Backup & Restore, IaC DR)
-                     │   ├─ Assign RPO/RTO targets per service
-                     │   ├─ Provide implementation effort & cost estimates
-                     │   └─ Generate action-required steps
-                     ├─ Criticality & Priority classification
-                     │   ├─ Critical/High/Medium/Low based on naming + resource type
-                     │   └─ P1/P2/P3/P4 priority based on criticality + zone redundancy
-                     ├─ Generate 12-sheet comprehensive Excel report
+                     ├─ Criticality & priority classification (2-step process)
+                     ├─ Generate advisory SA_ columns (all prefixed with Suggested/Estimated)
+                     ├─ Build 16-sheet Excel workbook
                      ├─ Update HTML dashboard with clickable Excel report card
                      └─ Open HTML dashboard in browser
 ```
@@ -147,1020 +181,227 @@ Transparent, documented classification logic:
 ### **Required PowerShell Modules**
 ```powershell
 # Azure PowerShell modules
-Install-Module -Name Az.Accounts -Scope CurrentUser -Force
+Install-Module -Name Az.Accounts      -Scope CurrentUser -Force
 Install-Module -Name Az.ResourceGraph -Scope CurrentUser -Force
 
-# Excel export module
-Install-Module -Name ImportExcel -Scope CurrentUser -Force
+# Excel export module (required for Phase 2)
+Install-Module -Name ImportExcel      -Scope CurrentUser -Force
 ```
 
 ### **Azure Permissions**
-- **Minimum:** `Reader` role on target subscriptions
-- **Recommended:** `Reader` + `Tag Contributor` (for tagging recommendations)
+- **Minimum:** `Reader` role on all target subscriptions
+- **Recommended:** `Reader` + `Tag Contributor`
 
 ### **PowerShell Version**
-- PowerShell 7.0 or higher
+- PowerShell 7.0 or higher (`pwsh`)
 
 ---
 
 ## ⚡ Quick Start
 
-### **1. Clone Repository to Local Machine**
-
-```powershell
-git clone https://github.com/zhshah/BCDR-Planning-Assessment-Report.git
-cd BCDR-Planning-Assessment-Report
-```
-
-### **2. Run Assessment - Single-Command Execution (Recommended)**
-
-**Option A: Let the script prompt for customer name interactively**
-```powershell
-.\Start-AzureBCDRAssessment.ps1
-```
-The script will ask for the customer name during execution.
-
-**Option B: Provide customer name as parameter**
-```powershell
-.\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization"
-```
-
-**Option C: Provide customer name and tenant ID (for multi-tenant scenarios)**
+### **Single-Command Execution (Recommended)**
 ```powershell
 .\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
 ```
 
-This will:
+This orchestrates both phases automatically:
 1. ✅ Authenticate to Azure
-2. ✅ Run Phase 1 (resource collection & zone analysis)
-3. ✅ Automatically run Phase 2 (BCDR enrichment)
-4. ✅ Generate comprehensive Excel report (12 sheets)
-5. ✅ Update HTML dashboard with clickable report card
-6. ✅ Open HTML dashboard in browser
+2. ✅ Run Phase 1 — resource collection, zone analysis, HTML dashboard
+3. ✅ Run Phase 2 — BCDR enrichment, 16-sheet Excel report
+4. ✅ Update HTML dashboard with clickable report card
+5. ✅ Open HTML dashboard in browser
 
-### **Output Location**
-All reports generated in timestamped folder:
+### **Run Phases Individually**
+```powershell
+# Phase 1 only
+.\Phase1-CollectResources.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
+
+# Phase 2 only (requires Phase 1 output folder path)
+.\Phase2-AddRecommendations.ps1 -OutputPath ".\CompleteBCDRAssessment_YYYYMMDD_HHMMSS"
 ```
-CompleteBCDRAssessment_YYYYMMDD_HHMMSS/
-├── [Customer Name] - BCDR Assessment Report.xlsx (12 sheets)
-├── Dashboard_ZoneRedundancy.html
+
+### **Output Folder Structure**
+```
+CompleteBCDRAssessment_YYYYMMDD_HHMMSS\
+├── [Customer Name] - BCDR Assessment Report.xlsx   ← 16-sheet Excel
+├── Dashboard_ZoneRedundancy.html                   ← HTML dashboard
 ├── MasterReport_AllResources.csv
 ├── Summary_ZoneRedundancy.csv
 ├── Summary_BySubscription.csv
 ├── ZoneMappings_AllSubscriptions.csv
-├── ResourceTypes/ (54 CSV files)
+├── ResourceTypes\                                  ← Per-resource-type CSVs
 └── Assessment_Log.txt
 ```
 
 ---
 
-## 📊 What Each Phase Does
+## 📊 Output Reports
 
-### **Phase 1: Resource Collection & Zone Redundancy Analysis**
+### **SA_Recommendations — Main Working Sheet**
 
-**Script:** `Phase1-CollectResources.ps1`
+Full resource inventory enriched with advisory SA_ columns:
 
-#### **What It Does:**
-1. **Azure Authentication**
-   - Connects to specified Azure tenant
-   - Retrieves all enabled subscriptions
+| Column Group | Columns |
+|---|---|
+| **Identity** | SubscriptionName, ResourceGroup, ResourceName, ResourceType, Location, SKU |
+| **Assessment** | ZoneRedundancyStatus, CrossRegionStatus, GeoRedundant, DRReady, LogicalZones, PhysicalZones |
+| **Workload Tier** | SA_WorkloadTier *(Suggested)*, SA_TierConfidence, SA_TierSource |
+| **SA Recommendations** | SA_Criticality, SA_Priority, SA_BCDRStrategy, SA_DRRegionChoice, SA_DRMethod, SA_RPO, SA_RTO |
+| **SA Actions** | SA_ActionRequired *(⚠️ ADVISORY preamble)*, SA_ImplementationEffort *(Estimated)*, SA_CostImpact *(Estimated)* |
+| **SA Details** | SA_QuickWin, SA_Dependencies, SA_ComplianceNote, SA_PhysicalZonePlacement, SA_ZoneTransitionPath |
+| **Resource Tags** | All Azure tags as Tag_* columns |
 
-2. **Availability Zone Mapping**
-   - Queries physical zone IDs per subscription
-   - Maps logical zones (Zone 1/2/3) → physical zones (actual datacenter IDs)
-   - **Why Important:** Logical Zone 1 in Subscription A ≠ Logical Zone 1 in Subscription B
-   - Enables accurate zone-wide failure impact assessment
+**Row Color-Coding by SA_Criticality:**
+- 🔴 Red: Critical  |  🟡 Orange-Yellow: High  |  🟡 Light Yellow: Medium  |  ⚫ Gray: Not Assessed (Dev/Test)
 
-3. **Resource Graph Query**
-   - Collects **ALL resources** across subscriptions (VMs, databases, storage, networking, etc.)
-   - Extracts: Name, Type, Location, SKU, Tags, Properties, Resource ID
+### **VM_Zone_Planner Sheet**
+- Filtered to: VMs, AKS, Flexible Servers, Application Gateways, Managed Instances
+- **Row 2:** Yellow legend row explaining why `LogicalZones`/`PhysicalZones` are empty in Qatar Central (expected — AZs are not customer-accessible)
+- Color-coded rows: 🔴 Red = NonZonal, 🟡 Yellow = Zonal, 🟢 Green = ZoneRedundant
+- Includes: SA_PhysicalZonePlacement and SA_ZoneTransitionPath with step-by-step guidance
 
-4. **Zone Redundancy Classification**
-   - Analyzes each resource's zone configuration
-   - **Categories:**
-     - ✅ **Zone Redundant** — Service automatically distributes across zones (e.g., Standard Public IP with ZRS)
-     - ⚠️ **Zonal** — Pinned to single zone (zone failure = service outage)
-     - ❌ **Non-Zonal** — No zone redundancy (regional service or locally redundant)
-     - ℹ️ **Not Applicable** — Service not zone-aware
-
-5. **Cross-Region DR Readiness Assessment**
-   - Checks for geo-redundant configurations:
-     - Storage: GRS, RA-GRS, GZRS, RA-GZRS
-     - SQL Database: Auto-Failover Groups, Geo-Replication
-     - Cosmos DB: Multi-region writes, read replicas
-   - **Key Insight:** Identifies resources relying ONLY on zones without cross-region protection
-
-6. **Dependency Extraction**
-   - Parses resource properties to identify dependencies:
-     - VNet/Subnet references
-     - Key Vault secret/certificate URIs
-     - Storage account endpoints
-     - Managed Identity assignments
-   - **Use Case:** Understand blast radius of DR failover
-
-7. **Report Generation**
-   - **54 CSV files** (one per resource type) → `ResourceTypes/microsoft_compute_virtualmachines.csv`
-   - **Master CSV** (all resources) → `MasterReport_AllResources.csv`
-   - **Zone mapping CSV** → `ZoneMappings_AllSubscriptions.csv`
-   - **Summary CSVs** → By resource type and by subscription
-   - **Interactive HTML Dashboard** → Visual heatmap and statistics
-
-#### **Phase 1 Output Example:**
-```
-Total Subscriptions: 3
-Total Resources: 339
-Zone Redundant: 1 (0.3%)
-Locally Redundant: 29 (8.6%)
-Non-Zonal: 51 (15.0%)
-```
-
-**⚠️ Key Finding:** Only 0.3% zone redundant → **Cross-region DR is critical**
-
----
-
-### **Phase 2: BCDR Recommendation Enrichment**
-
-**Script:** `Phase2-AddRecommendations.ps1`
-
-#### **What It Does:**
-
-1. **Load Phase 1 Data**
-   - Imports `MasterReport_AllResources.csv` from Phase 1
-   - Validates data integrity and row count
-
-2. **Smart Workload Tier Classification** 🆕
-   - **Purpose:** Automatically detect environment type to optimize DR costs
-   - **Detection Logic:**
-     ```
-     Priority 1: Subscription Name (High Confidence)
-       Keywords: prod, production, prd, live → Production
-       Keywords: dev, test, tst, uat, qa, stage → Dev/Test
-       Keywords: sandbox, poc, demo, trial, lab → Sandbox
-       Keywords: nonprod, non-prod → Non-Production
-     
-     Priority 2: Resource Tags (Medium Confidence)
-       Tags: Environment, Env, Tier, Stage, Workload, AppTier
-       Values: Production, Prod, Live → Production
-       Values: Development, Dev, Test, UAT, QA → Dev/Test
-       Values: Sandbox, POC, Demo → Sandbox
-     
-     Priority 3: Resource Group Name (Low Confidence)
-       Pattern matching on RG name (same keywords as subscription)
-     
-     Priority 4: Resource Name (Lowest Confidence)
-       Last resort pattern matching on resource name
-     
-     Default: Production (Assumed) — Low confidence
-       ⚠️ Warning added to SA_ActionRequired: "Classification uncertain, customer must confirm"
-     ```
-   
-   - **Strategy Adjustment:**
-     - **Sandbox:** `No DR Required (Recreate from IaC)` — Zero cost
-     - **Dev/Test:** `Backup & Restore (Cost-Optimized)` — 24h RPO, daily backup acceptable
-     - **Non-Production:** `Backup & Restore` — Standard backup strategy
-     - **Production:** Original Active-Passive or Active-Active strategies
-
-3. **Criticality Assessment**
-   - **Input Factors:**
-     - Subscription name patterns
-     - Resource group naming
-     - Resource name patterns
-     - Resource type (VMs, AKS, SQL = critical infrastructure)
-   
-   - **Classification:**
-     - **Critical (Suggested):** Production + critical infrastructure → VMs, AKS, SQL, Storage, Key Vault
-     - **High (Suggested):** Production + other resources
-     - **Medium (Suggested):** Unclear production indicators or critical infrastructure without "prod" naming
-     - **Low (Suggested):** Non-critical resources
-     - **Not Assessed (Dev/Test):** Subscription/RG/Resource contains dev/test/sandbox keywords
-
-4. **Priority Assignment**
-   - **Mapping:**
-     - Critical → **P1 (Suggested — Confirm with Customer)**
-     - High → **P2 (Suggested — Confirm with Customer)**
-     - Medium + No Zone Redundancy → **P2** (infrastructure gap detected)
-     - Medium + Zone Redundancy → **P3** (some HA configured)
-     - Low → **P4 (Suggested — Confirm with Customer)**
-     - Not Assessed (Dev/Test) → **Not Prioritised** (Customer to assess DR need)
-
-5. **BCDR Strategy Knowledge Base (54 Resource Types)**
-   - Service-specific DR strategy recommendations:
-     - **Virtual Machines:** Azure Site Recovery (ASR) to customer-chosen DR region
-     - **SQL Database:** Auto-Failover Groups with async geo-replication
-     - **AKS:** GitOps + IaC redeployment or warm standby cluster in DR region
-     - **Storage Accounts:** Object Replication (Qatar Central) or GRS (West Europe)
-     - **Cosmos DB:** Multi-region writes or read replicas
-     - **Key Vault:** Custom sync via Azure Functions (no native geo-replication)
-     - **And 48+ more services...**
-
-6. **Qatar Central Specific Constraints Applied**
-   - **No Paired Region:** Manual DR region selection (West Europe, North Europe recommended)
-   - **GRS Not Available:** Use Object Replication for Blob Storage, AzCopy/ADF for Azure Files
-   - **Azure Backup CRR Not Available:** Engage Microsoft Engineering for Region of Choice (RoC) preview
-   - **Zone Redundancy Restricted:** One AZ at capacity, ZRS blocked for most services
-   - **IaC Parity Critical:** Without IaC, DR provisioning can take days (per Microsoft Qatar BCDR Plan)
-
-7. **RPO/RTO Target Assignment**
-   - Based on BCDR strategy:
-     - **Active-Active:** < 5 min RTO, near-zero RPO
-     - **Active-Passive (Warm):** < 30 min RTO, < 1 hour RPO
-     - **Active-Passive (Cold):** < 4 hours RTO, < 24 hours RPO
-     - **Backup & Restore:** 4-12 hours RTO, 24 hours RPO
-     - **IaC DR:** 1-2 hours RTO (pipeline execution time), near-zero RPO (if state externalized)
-
-8. **Implementation Effort & Cost Analysis**
-   - **Effort Estimates:**
-     - Low: < 2 hours (e.g., enable ACR geo-replication)
-     - Medium: 1-2 days (e.g., configure Storage Object Replication)
-     - High: 1-2 weeks (e.g., design and deploy VNet topology in DR region)
-   
-   - **Cost Impact:**
-     - Low: < $100/month (backup storage only)
-     - Medium: $500-2000/month (warm standby, read replicas)
-     - High: $5000+/month (Active-Active, full duplicate infrastructure)
-
-9. **Action-Required Steps Generation**
-   - Per-resource action items with specific Azure CLI/PowerShell commands
-   - Example (SQL Database):
-     ```
-     1. Create SQL Server in West Europe (DR region)
-     2. Configure Auto-Failover Group: az sql failover-group create ...
-     3. Test failover quarterly
-     4. Document failover procedure in runbook
-     5. Obtain DPO approval for cross-border data replication (Qatar PDPPL)
-     ```
-
-10. **Comprehensive Excel Report (12 Sheets)**
-    - **Introduction:** Methodology, tier detection logic, priority criteria, filtering tips
-    - **Executive_Summary:** Key findings, Qatar constraints, top 10 recommendations
-    - **SA_Recommendations:** Full enriched inventory with all SA_* columns
-    - **QuickWins:** Low-effort, high-value subset
-    - **P1_Critical_Actions:** Suggested P1 resources (customer validation required)
-    - **Summary_ByResourceType:** Aggregated gap analysis
-    - **Summary_BySubscription:** Subscription-level overview
-    - **Timeline_ActionPlan:** Phased implementation (Foundation → Quick Wins → P1 → P2/P3 → Testing)
-    - **DR_Testing_Plan:** Quarterly testing template with rollback procedures
-    - **Dependencies_Matrix:** Service dependencies from environment data
-    - **Compliance_Checklist:** Qatar PDPPL, NIA/NCSA, DPO sign-off tracking
-    - **BCDR_Strategy_Reference:** Strategy design patterns, Qatar constraints, decision matrix
-
-11. **HTML Dashboard Update**
-    - Replaces placeholder with clickable BCDR report card
-    - Shows actual Excel file path and 12-sheet overview
-    - Opens dashboard in browser automatically
-
-#### **Phase 2 Output Example:**
-```
-Total Resources Enriched: 339
-P1 Critical (Suggested): 45
-P2 High (Suggested): 78
-Quick Win Actions: 12
-Production Tier: 245
-Dev/Test Tier: 67
-Sandbox Tier: 27
-```
-
----
-
-## 📈 Output Reports
-
-### **1. Comprehensive Excel Report (12 Sheets)**
-
-#### **Sheet 1: Introduction**
-- Report overview and purpose
-- **Assessment Automation Framework** section with developer attribution
-- Worksheet guide (12 sheets explained)
-- SA_ column definitions
-- **ASSESSMENT METHODOLOGY** 🆕
-  - Step 1: Criticality Assessment (detailed table with conditions and results)
-  - Step 2: Priority Assignment (criticality + zone redundancy → P1/P2/P3/P4)
-  - Classification examples with 5 real-world scenarios
-  - **Smart Workload Tier Auto-Detection** explanation
-- Filtering & navigation tips (25+ filter combinations)
-- Qatar PDPPL and NIA/NCSA compliance notes
-
-#### **Sheet 2: Executive Summary**
-- Customer name and assessment date
-- **Automation Developed By:** Zahir Hussain Shah, Microsoft Qatar | Build Version 1.0
-- Assessment disclaimer (priorities are suggested, not final)
-- **Methodology Reference** pointing to Introduction sheet
-- Key findings: Zone redundancy status, GRS availability, Azure Backup RoC status
-- Resource statistics (total, P1, P2, Quick Wins, DR gaps, by region)
-- Top 10 recommendations (Azure Backup RoC, Object Replication, ASR, Cosmos DB multi-region, etc.)
-- Compliance notes (Qatar PDPPL, NIA/NCSA Certificate ID: 10018)
-
-#### **Sheet 3: SA_Recommendations (Main Working Sheet)**
-Columns include:
-- **Identity:** SubscriptionName, ResourceGroup, ResourceName, ResourceType, Location, Kind, SKU
-- **Assessment:** ZoneRedundancyStatus, CrossRegionStatus, PairedRegion, GeoRedundant, DRReady
-- **Workload Tier:** 🆕 SA_WorkloadTier, SA_TierConfidence, SA_TierSource
-- **SA Recommendations:** SA_Criticality, SA_Priority, SA_BCDRStrategy, SA_DRRegionChoice, SA_DRMethod, SA_RPO, SA_RTO, SA_ActionRequired, SA_ImplementationEffort, SA_CostImpact, SA_QuickWin, SA_Dependencies, SA_ComplianceNote
-- **All Resource Tags:** Tag_Environment, Tag_Owner, Tag_CostCenter, etc.
-
-**Row Color-Coding:**
-- Red background: Critical resources
-- Orange background: High priority
-- Yellow background: Medium priority
-- Gray background: Dev/Test (Not Assessed)
-
-**SA_WorkloadTier Cell Color-Coding:** 🆕
-- Green: Production (confirmed)
-- Yellow: Non-Production
-- Blue: Dev/Test
-- Gray: Sandbox
-- Orange: Production (Assumed) — Low confidence, needs review
-
-#### **Sheet 4: QuickWins**
-Subset filtered by `SA_QuickWin = "Yes"`
-- Low implementation effort (< 2 hours to 2 days)
-- Immediate value (cost savings, compliance, or RTO improvement)
-- Examples:
-  - Enable ACR Premium Geo-Replication to West Europe
-  - Configure Automation Account + Key Vault sync
-  - Add West Europe endpoints to Traffic Manager
-  - Enable geo-redundant backup on MySQL/PostgreSQL
-
-#### **Sheet 5: P1_Critical_Actions**
-Subset filtered by `SA_Priority LIKE "P1*"`
-- **Includes workload tier columns** 🆕 for validation
-- Suggested highest-priority resources (customer must confirm actual criticality)
-- Action-required steps with effort and cost estimates
-- Example P1 resources:
-  - VMs named "vm-prod-*" in production subscriptions
-  - SQL Databases in critical infrastructure resource groups
-  - AKS clusters without cross-region backup
-  - Key Vaults storing production secrets
-
-#### **Sheet 6: Summary_ByResourceType**
-Aggregated statistics per Azure service type:
-- Total count, Critical count, High count, Medium count, Low count, Dev/Test count
-- Quick Win count, P1 Actions count
-- Common BCDR strategy, DR method, RPO, RTO for that resource type
-
-#### **Sheet 7: Summary_BySubscription**
-Subscription-level rollup:
-- Total resources per subscription
-- Zone redundant count, Locally redundant count, Non-zonal count
-- P1 count, Quick Win count
-- DR ready resources vs. DR gap resources
-- Subscription-level recommendations
-
-#### **Sheet 8: Timeline_ActionPlan**
-Phased implementation roadmap:
-- **Phase 0: Foundation (Week 1-2)** — VNet topology in DR region, IaC repository setup
-- **Phase 1: Quick Wins (Week 3-4)** — ACR geo-replication, Storage Object Replication, Automation Account sync
-- **Phase 2: P1 Critical (Month 2-3)** — ASR for VMs, SQL Failover Groups, AKS DR strategy, Cosmos DB multi-region
-- **Phase 3: P2/P3 (Month 4-6)** — Remaining production resources, non-critical workloads
-- **Phase 4: Testing & Validation (Ongoing)** — Quarterly DR tests, runbook updates
-
-**Disclaimer:** Timeline is TENTATIVE and GENERAL GUIDANCE. Customer to adjust based on budget, resources, and business priorities.
-
-#### **Sheet 9: DR_Testing_Plan**
-Quarterly DR testing template:
-- **Test Objectives:** Validate RTO/RPO, verify runbooks, train staff
-- **Pre-Test Checklist:** Backup verification, change freeze, stakeholder notification
-- **Test Scenarios:** Planned failover, unplanned failover, failback
-- **Success Criteria:** RTO achieved, data loss within RPO, applications functional
-- **Rollback Procedure:** Step-by-step failback instructions
-- **Post-Test Review:** Lessons learned, runbook updates, improvement actions
-
-#### **Sheet 10: Dependencies_Matrix**
-Service dependencies extracted from real environment:
-- Resource → Dependent Service mappings
-- Example: VM "vm-prod-web-01" → Depends on: VNet (vnet-prod-001), Subnet (snet-web), Key Vault (kv-prod-secrets), Storage (stgprodboot)
-- **Use Case:** Understand which resources must failover together
-- **Blast Radius Analysis:** If Key Vault fails, which VMs/Apps/Functions are impacted?
-
-#### **Sheet 11: Compliance_Checklist**
-Qatar BCDR compliance tracker:
-- **Data Classification:** Public, Internal, Confidential, Restricted
-- **Qatar PDPPL:** DPO approval for cross-border transfer, data residency documentation
-- **NIA/NCSA Certification:** Verify DR region is NIA-certified (West Europe, North Europe)
-  - Certificate ID: 10018 | Valid Until: 28 August 2026
-- **Technical Readiness:** IaC parity, runbook documentation, access controls
-- **Testing & Validation:** DR test results, RTO/RPO validation
-- **Sign-Off Tracking:** Customer stakeholder approval checkboxes
-
-#### **Sheet 12: BCDR_Strategy_Reference** 🆕
-Complete BCDR strategy guide:
-- **Strategy Patterns:** Active-Active, Active-Passive (Warm/Cold), Backup & Restore, Geo-Replication, IaC DR, Hybrid
-  - Each pattern includes: Definition, When to Use, RPO/RTO, Cost, Example Services
-- **Qatar Central Specific Constraints:**
-  - No Paired Region → Impact and recommended approach
-  - Zone Redundancy Restricted → Use cross-region DR, not zones alone
-  - Azure Backup RoC Preview → Supported workloads, target regions (Sweden Central, Switzerland North only)
-  - IaC Parity Critical → Most critical factor for RTO (per Microsoft Azure Qatar BCDR Plan)
-  - NIA/NCSA Certification → West Europe and North Europe approved for Qatar government/regulated sectors
-- **DR Strategy Decision Matrix:**
-  - Tier 1 (Mission-Critical): < 5 min RTO → Active-Active or Hot Standby
-  - Tier 2 (Production): < 30 min RTO → Active-Passive (Warm)
-  - Tier 3 (Non-Critical): < 4 hours RTO → Backup & Restore or Cold Standby
-- **Smart Workload Tier Auto-Detection:** 🆕
-  - 4-priority detection logic explained
-  - Tier-based strategy adjustment table
-  - Cost impact comparison (Production vs. Dev/Test vs. Sandbox)
-  - How to review and override tier classification
-- **References:** Points to Microsoft Azure Qatar BCDR Plan and Azure Backup RoC documentation
-- **Key Takeaways:** IaC priority, zone redundancy limitations, NIA certification requirements
-
----
-
-### **2. Interactive HTML Dashboard**
-
-**File:** `Dashboard_ZoneRedundancy.html`
-
-**Features:**
-- **Subscription-level statistics** (resource count, zone redundant %, DR ready %)
-- **Zone redundancy heatmap** (color-coded by subscription)
-- **Cross-region DR status** (geo-redundant vs. single-region resources)
-- **Resource type breakdown** (top 10 resource types by count)
-- **Clickable BCDR Report Card** 🆕
-  - Blue gradient card with "OPEN FULL REPORT" button
-  - Shows actual Excel file path
-  - Lists 12 comprehensive worksheets, timeline plans, dependencies matrix, compliance checklist
-  - One-click to open Excel report
-  - Quick Tip section explaining report contents
-
----
-
-### **3. CSV Data Files**
-
-- **MasterReport_AllResources.csv** — Combined inventory (all subscriptions)
-- **ZoneMappings_AllSubscriptions.csv** — Logical → Physical zone mapping
-- **Summary_ZoneRedundancy.csv** — Aggregated by resource type
-- **Summary_BySubscription.csv** — Aggregated by subscription
-- **ResourceTypes/*.csv** — 54 individual files (one per resource type)
+### **Risk_Heatmap Sheet**
+- Matrix: Subscriptions (rows) × Zone Redundancy Status (columns)
+- Normalized risk score per subscription (0–100)
+- Color gradient: 🟢 Green (low risk) → 🔴 Red (high risk)
 
 ---
 
 ## 🔍 Assessment Methodology
 
-### **Criticality Assessment (Step 1)**
-
-**Input Data:**
-1. Subscription name
-2. Resource group name
-3. Resource name
-4. Resource type
-
-**Classification Logic:**
+### **Step 1 — Criticality Assessment**
 
 | Condition | Result |
-|-----------|--------|
-| Subscription contains: `dev`, `test`, `tst`, `poc`, `sandbox`, `uat`, `qa`, `stage`, `stg` | **Not Assessed (Dev/Test)** |
-| Name contains: `prod`, `prd`, `production`, `live` **AND** Critical Infrastructure Resource Type* | **Critical (Suggested)** |
-| Name contains: `prod`, `prd`, `production`, `live` **AND** Other resource types | **High (Suggested)** |
-| Name contains: `test`, `dev`, `poc`, `stage`, `sandbox`, `uat`, `qa` (in RG or resource name) | **Not Assessed (Dev/Test)** |
-| No clear indicators **BUT** Critical Infrastructure Resource Type* | **Medium (Suggested)** |
-| No clear indicators **AND** Non-critical resource type | **Low (Suggested)** |
+|---|---|
+| Subscription contains: `dev`, `test`, `tst`, `poc`, `sandbox`, `uat`, `qa`, `stage` | **Not Assessed (Dev/Test)** |
+| Name contains: `prod`, `prd`, `production`, `live` + Critical resource type* | **Critical (Suggested)** |
+| Name contains: `prod`, `prd`, `production`, `live` + other types | **High (Suggested)** |
+| No prod indicator + Critical resource type* | **Medium (Suggested)** |
+| No indicators + non-critical type | **Low (Suggested)** |
 
-**Critical Infrastructure Resource Types (*):**
-- VirtualMachines, ManagedClusters (AKS), SQL/MySQL/PostgreSQL Databases, Cosmos DB, Storage Accounts, Key Vaults, NetApp Volumes, Recovery Services Vaults, API Management, Event Hubs, Service Bus, Azure VMware Solution, Redis Enterprise, Data Factory
+*Critical resource types: VMs, AKS, SQL, MySQL, PostgreSQL, Cosmos DB, Storage, Key Vault, NetApp, Recovery Services Vaults, API Management, Event Hubs, Service Bus, Redis Enterprise, Data Factory*
 
----
+### **Step 2 — Priority Assignment**
 
-### **Priority Assignment (Step 2)**
+| Criticality | Zone Redundancy | Final Priority |
+|---|---|---|
+| Critical | Any | **P1 (Suggested — Confirm with Customer)** |
+| High | Any | **P2 (Suggested — Confirm with Customer)** |
+| Medium | Non-Zonal or Locally Redundant | **P2 (Suggested — Confirm with Customer)** — gap detected |
+| Medium | Zone Redundant or Zonal | **P3 (Suggested — Confirm with Customer)** |
+| Low | Any | **P4 (Suggested — Confirm with Customer)** |
+| Not Assessed | Any | **Not Prioritised (Dev/Test — Customer to Assess)** |
 
-**Input:**
-- Criticality from Step 1
-- Zone Redundancy Status from Phase 1
+> ⚠️ All priorities are **suggestions** based on automated naming analysis only. Customer must validate with business stakeholders before taking any action.
 
-**Priority Mapping:**
+### **Workload Tier Auto-Detection**
 
-| Criticality | Zone Redundancy Status | Final Priority |
-|-------------|------------------------|----------------|
-| **Critical** | Any | **P1 (Suggested — Confirm with Customer)** |
-| **High** | Any | **P2 (Suggested — Confirm with Customer)** |
-| **Medium** | Non-Zonal or Locally Redundant | **P2 (Suggested — Confirm with Customer)** — Infrastructure gap detected; elevated priority |
-| **Medium** | Zone Redundant or Zonal | **P3 (Suggested — Confirm with Customer)** — Some HA configured; lower priority |
-| **Low** | Any | **P4 (Suggested — Confirm with Customer)** |
-| **Not Assessed (Dev/Test)** | Any | **Not Prioritised (Dev/Test — Customer to Assess DR Need)** |
-
-**⚠️ Important:** All priorities are **SUGGESTED** based on automated naming analysis. Customer must validate with business stakeholders to confirm actual criticality and DR requirements.
-
----
-
-### **Workload Tier Auto-Detection (Cost Optimization)** 🆕
-
-**Purpose:** Automatically detect environment type to assign cost-optimized DR strategies for non-production workloads.
-
-**Detection Priority:**
-
-1. **Subscription Name (High Confidence)**
-   - Production keywords: `\bprod\b`, `production`, `\bprd\b`, `\blive\b`
-   - Sandbox keywords: `sandbox`, `\bsbx\b`, `\bpoc\b`, `demo`, `trial`, `lab`
-   - Dev/Test keywords: `\bdev\b`, `\btest\b`, `\btst\b`, `\buat\b`, `\bqa\b`, `\bstage\b`, `\bstaging\b`
-   - Non-Prod keywords: `nonprod`, `non-prod`, `\bnp-`
-
-2. **Resource Tags (Medium Confidence)**
-   - Tags checked: `Environment`, `Env`, `Tier`, `Stage`, `Workload`, `AppTier`
-   - Tag values: `Production`, `Prod`, `Live`, `Development`, `Dev`, `Test`, `UAT`, `QA`, `Sandbox`, `POC`
-
-3. **Resource Group Name (Low Confidence)**
-   - Pattern matching on RG name (same keywords as subscription)
-
-4. **Resource Name (Lowest Confidence)**
-   - Last resort pattern matching on resource name
-
-5. **Default: Production (Assumed)**
-   - If no keywords found → Default to Production with **Low confidence**
-   - ⚠️ Warning added to SA_ActionRequired: "Classification uncertain, customer must confirm workload tier"
-
-**Strategy Adjustment Based on Tier:**
-
-| Tier | Adjusted Strategy | Adjusted Priority | Adjusted RPO | Adjusted RTO | Cost Impact | Example |
-|------|-------------------|-------------------|--------------|--------------|-------------|---------|
-| **Production** | Original (Active-Passive/Active-Active) | Original (P1/P2/P3) | < 1 hour | < 30 min | High | VM in "Prod-Subscription" → Active-Passive (ASR) |
-| **Non-Production** | Backup & Restore | P2 (Non-Prod — Adjusted) | < 24 hours | < 8 hours | Medium | DB in "NonProd-Subscription" → Backup only |
-| **Dev/Test** | Backup & Restore (Cost-Optimized) | P3 (Dev/Test — Reduced Priority) | 24 hours (daily backup) | 4-8 hours | Low | VM in "Dev-Subscription" → Daily backup |
-| **Sandbox** | No DR Required (Recreate from IaC) | Not Prioritised (Sandbox) | N/A | Recreate from IaC | **Zero** | AKS in "Sandbox-Subscription" → No DR |
-| **Production (Assumed)** — Low Confidence | Original + ⚠️ Warning | Original | Original | Original | High until confirmed | Resource with no clear indicators |
-
-**Cost Optimization Example:**
-
-**Before (treating all as Production):**
-- Dev VM → Active-Passive (ASR) = ~$150/month
-- Test SQL DB → Failover Group = ~$300/month
-- Sandbox AKS → Warm standby = ~$500/month
-- **Total: ~$950/month per environment**
-
-**After (smart classification):**
-- Dev VM → Backup & Restore = ~$20/month
-- Test SQL DB → Backup only = ~$15/month
-- Sandbox AKS → No DR = $0
-- **Total: ~$35/month — 96% cost reduction!**
+| Tier | DR Strategy Applied | Cost Impact |
+|---|---|---|
+| (Suggested) Production | Active-Passive / Active-Active | High |
+| (Suggested) Non-Production | Backup & Restore | Medium |
+| (Suggested) Dev/Test | Backup & Restore (Cost-Optimized), 24h RPO | Low |
+| (Suggested) Sandbox | No DR Required (Recreate from IaC) | **Zero** |
+| (Suggested) Production (Assumed) | Production strategy + ⚠️ warning to confirm | High until confirmed |
 
 ---
 
 ## 🇶🇦 Qatar-Specific Compliance
 
-### **Based on Microsoft Azure Qatar BCDR Plan**
+### **Key Qatar Central Constraints**
+| Constraint | Detail |
+|---|---|
+| No paired region | GRS storage unavailable; Azure Backup CRR unavailable; manual DR region selection required |
+| Zone redundancy restricted | One AZ at full capacity; ZRS/GZRS blocked for most services |
+| Azure Backup RoC (preview) | Supported workloads: IaaS VM, SQL in VM, SAP HANA, Azure Files only; Target regions: Sweden Central or Switzerland North ONLY |
+| IaC parity critical | *"IaC parity is the MOST CRITICAL FACTOR for RTO in non-paired regions"* — Microsoft Azure Qatar BCDR Plan |
 
-This framework implements recommendations from the **Microsoft Azure Qatar BCDR Plan** document, which provides service-specific DR strategies, prerequisites, backup approaches, and checklists for Azure PaaS and IaaS services in Qatar Central.
+### **NIA/NCSA Certification**
+- **Certificate ID:** 10018 | **Valid Until:** 28 August 2026
+- **Certified regions:** Qatar Central ✅, West Europe ✅, North Europe ✅
+- Sweden Central and Switzerland North (Azure Backup RoC targets) are **NOT NIA-certified** — document in compliance checklist
 
-**Key Guidance from the Plan:**
-> "IaC parity is the MOST CRITICAL FACTOR for RTO in Qatar Central due to lack of paired region automation. Without IaC, DR provisioning can take days."
-
-All recommendations in this framework emphasize Infrastructure-as-Code (Bicep, ARM, Terraform) as mandatory for production workloads.
-
----
-
-### **Azure Backup Region of Choice (RoC) — Preview**
-
-**Background:**
-- Qatar Central has **no paired Azure region** due to data residency requirements
-- Standard **Cross-Region Restore (CRR)** for Azure Backup is NOT available
-- Microsoft Engineering provisioned **"Region of Choice (RoC)"** preview feature
-
-**Supported Workloads:**
-- ✅ IaaS VMs (Azure Virtual Machines)
-- ✅ SQL Server in Azure VM
-- ✅ SAP HANA in Azure VM
-- ✅ Azure File Share (AFS)
-
-**NOT Supported Yet:**
-- ❌ PostgreSQL Flexible Server Backup
-- ❌ AKS (Azure Kubernetes Service) Backup cross-region replication
-
-**Target Regions:**
-- **Sweden Central (SDC)** ✅
-- **Switzerland North (SZN)** ✅
-- ❌ West Europe, North Europe, UAE North (NOT available as RoC targets)
-
-**Action Required:**
-1. Engage Microsoft account team to whitelist subscription for RoC preview
-2. Create Recovery Services Vault in Sweden Central or Switzerland North
-3. Configure backup policies for supported workloads
-4. Enable Soft Delete and Multi-User Authorization (MUA) on vault
-5. Document RoC as preview feature in compliance checklist
-
-**For West Europe Resources:**
-- Standard CRR to North Europe (paired region) **IS available** — no Engineering engagement required
-
----
-
-### **NIA/NCSA Compliance**
-
-**Microsoft Azure Qatar Program holds NIA V2.0 compliance certificate (Certificate ID: 10018) from Qatar's National Cyber Security Agency (NCSA).**
-
-**Certified Regions:**
-1. ✅ **Qatar Central (Doha)** — Primary region
-2. ✅ **West Europe (Amsterdam)** — NIA-certified DR region
-3. ✅ **North Europe (Dublin)** — NIA-certified DR region
-
-**NOT Certified:**
-- ❌ Sweden Central (used for Azure Backup RoC)
-- ❌ Switzerland North (used for Azure Backup RoC)
-- ❌ UAE North, East US, other regions
-
-**Implications for DR Region Selection:**
-
-| Workload Type | DR Region Recommendation | Rationale |
-|---------------|--------------------------|-----------|
-| **Qatar Government** | West Europe or North Europe | NIA/NCSA certification mandatory |
-| **Qatar Public Sector** | West Europe or North Europe | NIA/NCSA certification required |
-| **Regulated Industries** (Finance, Healthcare) | West Europe or North Europe | NIA/NCSA certification strongly recommended |
-| **Private Sector (Non-Regulated)** | Customer choice: West Europe, North Europe, UAE North, or other | NIA certification not mandatory, consider latency and cost |
-| **Azure Backup Vault** (RoC) | Sweden Central or Switzerland North (preview) | RoC technical constraint — NOT NIA-certified. Document in compliance checklist and obtain customer security/DPO approval. |
-
-**Action Required:**
-- Customer to conduct **data classification workshop**
-- Categorize resources by sensitivity: Public, Internal, Confidential, Restricted
-- For **Confidential/Restricted data** → Prefer NIA-certified regions (West Europe, North Europe)
-- For **Azure Backup RoC** to Sweden Central/Switzerland North → Document that backup vaults are NOT in NIA-certified regions
-- Submit DR replication plan to **Data Protection Officer (DPO)** for approval per Qatar PDPPL
-
----
-
-### **Qatar PDPPL (Personal Data Protection Privacy Law)**
-
-**Background:**
-- Qatar PDPPL governs processing and **cross-border transfer** of personal data
-- Applies to: Government, public sector, private sector organizations in Qatar
-
-**Key Requirement:**
-- **Cross-border data transfer** to West Europe, North Europe, or any secondary region requires **DPO review and approval**
-
-**Assessment Action Items:**
-1. **Data Classification Workshop**
-   - Classify all Azure resources by data sensitivity
-   - Identify resources containing personal data (PII, customer data)
-
-2. **Cross-Border Transfer Impact Assessment**
-   - Document which resources will replicate to DR region
-   - Assess data residency and sovereignty implications
-
-3. **DPO Approval**
-   - Submit DR replication plan to Data Protection Officer
-   - Obtain written approval for cross-border data movement
-   - Document approval in Compliance_Checklist sheet
-
-4. **PDPPL Compliance Checklist Items:**
-   - [ ] Data classification completed (Public/Internal/Confidential/Restricted)
-   - [ ] Cross-border data transfer documented
-   - [ ] DPO approval obtained
-   - [ ] Data Processing Agreement (DPA) with Microsoft reviewed
-   - [ ] Employee training on data handling during DR events
-   - [ ] Incident response plan includes PDPPL notification requirements
-
----
-
-### **⚠️ Cross-Region DR Emphasis**
-
-**Why This Framework Prioritizes Cross-Region DR Over Availability Zones:**
-
-1. **Availability Zones Protect Against:**
-   - ✅ Single datacenter failure (one AZ outage)
-   - ✅ Infrastructure failures (power, cooling, networking within one zone)
-   - ✅ Planned maintenance in one zone
-
-2. **Availability Zones DO NOT Protect Against:**
-   - ❌ **Region-wide failures** (entire Qatar Central region outage)
-   - ❌ **Natural disasters** (earthquakes, floods affecting entire region)
-   - ❌ **Geo-political events** (regional conflicts, compliance changes)
-   - ❌ **Catastrophic infrastructure failures** (regional network outage, control plane failure)
-   - ❌ **Regulatory changes** requiring immediate data residency moves
-
-3. **Qatar Central Specific Risks:**
-   - **Zone Redundancy RESTRICTED:** One availability zone is at full capacity — ZRS blocked for most services
-   - **No Paired Region:** Cannot leverage automatic Azure paired region DR (GRS, CRR, Service Bus Geo-DR)
-   - **Relying on zones alone = single point of failure** at region level
-
-**Best Practice — Defense in Depth:**
-```
-Layer 1: Availability Zones (In-Region HA)
-   ↓ Protects against: Single AZ failure
-   
-Layer 2: Cross-Region DR (Geo-Redundancy)
-   ↓ Protects against: Entire region failure
-   
-Layer 3: IaC + Automation (Rapid Redeployment)
-   ↓ Protects against: DR provisioning delays
-```
-
-**Microsoft Recommendation:**
-> "Use availability zones for **in-region high availability** where available. Always implement **cross-region disaster recovery** for business-critical workloads. Zones are NOT a substitute for geo-redundancy."
+### **Qatar PDPPL**
+- Cross-border data replication requires **DPO approval**
+- Conduct data classification workshop before enabling geo-replication
+- Compliance checklist sheet tracks DPO sign-off and PDPPL requirements
 
 ---
 
 ## 🛡️ BCDR Strategies Recommended
 
-### **1. Active-Active (Multi-Region)**
-
-**Definition:** Both regions are LIVE and actively serving production traffic simultaneously. Traffic is load-balanced across regions using Azure Front Door or Traffic Manager.
-
-**When to Use:**
-- Mission-critical workloads requiring **zero downtime**
-- Tier-1 applications with strict SLA requirements (e.g., e-government portals, financial trading platforms, healthcare critical systems)
-
-**RPO:** Near-zero (synchronous or near-synchronous replication)  
-**RTO:** Near-zero (traffic automatically re-routes to healthy region)  
-**Cost:** High (2x compute cost — both regions fully provisioned and running)
-
-**Example Services:**
-- Azure Cosmos DB (multi-region writes) — Automatic failover with <1 min RTO
-- Azure Container Registry Premium (Geo-Replication) — Single endpoint, multiple replicas
-- Azure Static Web Apps — Global CDN distribution built-in
-- Azure Traffic Manager / Azure Front Door — Global load balancers
+| Strategy | RTO | RPO | Cost | Use Case |
+|---|---|---|---|---|
+| **Active-Active** | Near-zero | Near-zero | High | Mission-critical (Tier 1) |
+| **Active-Passive (Warm)** | < 30 min | < 1 hour | Medium | Production workloads |
+| **Active-Passive (Cold / IaC)** | Hours | Hours–Days | Low | Cost-sensitive production |
+| **Backup & Restore** | 4–12 hours | 24 hours | Low | Non-critical / Dev/Test |
+| **Geo-Replication** | Automatic | < 15 sec | Premium tier | Storage, Cosmos DB, Service Bus Premium |
+| **No DR (IaC Recreate)** | Hours | N/A | Zero | Sandbox / POC |
 
 ---
 
-### **2. Active-Passive (Warm Standby)**
+## 🔧 Supported Azure Services (54 Resource Types)
 
-**Definition:** Primary region is LIVE. Secondary region is **pre-provisioned** but idle/standby. On DR event, traffic is manually or automatically re-routed to secondary. Secondary can be "warm" (pre-deployed but scaled down) or "hot" (pre-deployed at full scale).
-
-**When to Use:**
-- **Most common pattern** for production Azure workloads
-- Production workloads with moderate RTO requirements (5-30 minutes)
-- Cost-optimized alternative to Active-Active
-
-**RPO:** Depends on replication method (typically <5 min for databases, near-real-time for VMs via ASR)  
-**RTO:** <30 minutes with automation; <5 minutes with health probe-based traffic re-routing (Azure Front Door)  
-**Cost:** Medium (secondary infrastructure pre-provisioned but possibly scaled down)
-
-**Example Services:**
-- **Virtual Machines:** Azure Site Recovery (ASR) to West Europe — Continuous replication, manual failover
-- **Azure SQL Database:** Auto-Failover Groups — Async replication, automatic or manual failover
-- **Azure App Service:** Standby instance in West Europe — Pre-deployed app, traffic switched via Front Door
-- **AKS:** Standby cluster in West Europe — IaC-provisioned, scaled to minimal size, scaled up on DR
-- **Azure MySQL/PostgreSQL:** Cross-Region Read Replica — Async replication, manual promotion to writable
-
----
-
-### **3. Active-Passive (Cold Standby)**
-
-**Definition:** Primary region is LIVE. Secondary region has **NO pre-provisioned infrastructure**. DR resources are deployed **ON-DEMAND** during a DR event using Infrastructure-as-Code (IaC).
-
-**When to Use:**
-- Non-production environments (dev/test) with relaxed RTO/RPO
-- Cost-sensitive scenarios where pre-provisioning secondary is not justified
-- Workloads fully recreatable from IaC
-
-**RPO:** Dependent on data backup frequency (hours to days)  
-**RTO:** Hours (infrastructure provisioning + data restore)  
-**Cost:** Low (no secondary compute cost — pay only for backup storage)
-
-**Example Services:**
-- **Virtual Machines:** IaC Redeployment + Backup Restore from Recovery Services Vault — Redeploy VMs via Bicep/ARM during DR
-- **Azure App Service:** IaC Redeployment — Redeploy app via ARM template or CI/CD pipeline
-- **Azure Logic Apps:** Git-based redeployment — Recreate from source-controlled definitions
-- **Azure Key Vault:** Manual creation + export/import — Rebuild vault and restore secrets
-
----
-
-### **4. Backup & Restore**
-
-**Definition:** Periodic backups of data are stored in geo-redundant storage. On DR event, data is restored from backup to a new or existing service instance in the DR region. No live secondary.
-
-**When to Use:**
-- Non-critical workloads with longer acceptable RTO/RPO (hours)
-- Data protection scenarios (corruption, accidental deletion, ransomware)
-- Compliance-driven retention (7 years data retention)
-
-**RPO:** Backup frequency (daily = 24h RPO; 4-hourly enhanced policy = 4h RPO)  
-**RTO:** Restore time (4-12 hours depending on data size)  
-**Cost:** Low (backup storage only)
-
-**Example Services:**
-- **Azure Backup (Recovery Services Vault):** VM backup, SQL backup, Azure Files backup — Restore to West Europe or other regions
-- **Azure SQL Database:** Geo-Redundant Backup + Geo-Restore — Automated daily backups, restore to any Azure region
-- **Azure Blob Storage:** Soft Delete + Versioning + Immutable Blobs — Protect against accidental deletion and ransomware
-- **Azure NetApp Files:** ANF Backup — On-demand snapshots + cross-region backup
-
----
-
-### **5. Geo-Replication (Platform-Managed)**
-
-**Definition:** Azure service automatically replicates data to secondary region. Failover is manual or automatic depending on service.
-
-**When to Use:**
-- Leveraging built-in Azure service resilience without custom configuration
-- Services that support native geo-replication
-
-**RPO:** Near-zero (<15 seconds)  
-**RTO:** Automatic (service-managed) or manual (customer-initiated)  
-**Cost:** Typically included in Premium/Standard tiers
-
-**Example Services:**
-- **Azure Storage:** GRS, RA-GRS, GZRS, RA-GZRS — Async replication to paired region (NOT available for Qatar Central — use Object Replication instead)
-- **Azure Cosmos DB:** Multi-Region Replication — Async replication with automatic failover priorities
-- **Azure Event Hubs Premium:** Geo-Replication — Continuous replication of events AND metadata
-- **Azure Service Bus Premium:** Geo-Replication — Continuous replication of messages AND configuration
-
----
-
-### **6. Infrastructure-as-Code (IaC) DR**
-
-**Definition:** All infrastructure is defined in code (Bicep, Terraform, ARM). DR region infrastructure is provisioned via automated deployment pipelines. Critical for stateless services and serverless architectures.
-
-**When to Use:**
-- Cloud-native applications, microservices, serverless (Functions, Logic Apps), container orchestration (AKS)
-- **Mandatory for Qatar Central workloads** due to lack of paired region automation
-
-**RPO:** Near-zero (if state is externalized to geo-redundant storage)  
-**RTO:** Pipeline execution time (15 minutes to 2 hours)  
-**Cost:** Low (no standby infrastructure — deploy only on DR trigger)
-
-**⚠️ Critical Success Factor (per Microsoft Azure Qatar BCDR Plan):**
-> "IaC parity is the MOST CRITICAL FACTOR for RTO in non-paired regions. Without IaC, manual DR provisioning can take days."
-
-**Example Services:**
-- **AKS:** GitOps + IaC redeployment to West Europe
-- **Azure Functions / App Service:** CI/CD pipeline redeploys to West Europe on DR trigger
-- **Azure Virtual Networks:** VNet topology defined in Bicep; redeployed to West Europe
-- **Azure API Management:** ARM export + redeployment (Premium Multi-Region is preferred but costly)
-- **Azure Data Factory:** Git-integrated pipelines redeployed to West Europe ADF instance
-
----
-
-### **7. No DR Required (Sandbox / POC)**
-
-**Definition:** Sandbox, POC, demo, or trial environments with no business value. DR is not justified. If data is valuable, implement backup only.
-
-**When to Use:**
-- **Sandbox/POC environments** detected via smart workload tier classification
-- Resources used for testing, demos, labs, training
-- No production dependencies
-
-**RPO:** N/A  
-**RTO:** Recreate from IaC if needed (hours to days)  
-**Cost:** **Zero** (no DR strategy = zero DR cost)
-
-**⚠️ Warning:** Automatically assigned to resources in subscriptions/RGs with "sandbox", "poc", "demo", "trial", "lab" keywords. Customer to review SA_WorkloadTier column and confirm if DR is actually needed.
-
----
-
-## 🔧 Supported Azure Services
-
-This framework provides service-specific BCDR recommendations for **54 Azure resource types**:
-
-### **Compute**
-- Virtual Machines
-- Azure Kubernetes Service (AKS / Managed Clusters)
-- App Service (Web Apps)
-- Azure Functions
-- Container Apps
-- Virtual Machine Scale Sets
-- Azure Virtual Desktop
-- Azure VMware Solution (AVS)
-
-### **Databases**
-- Azure SQL Database / Managed Instance
-- MySQL Flexible Server
-- PostgreSQL Flexible Server
-- Cosmos DB
-- Azure Database for MariaDB
-
-### **Storage**
-- Storage Accounts (Blob, Files, Queue, Table)
-- Azure NetApp Files
-- Managed Disks
-
-### **Networking**
-- Virtual Networks (VNets)
-- Network Security Groups (NSGs)
-- Public IP Addresses
-- Azure Bastion
-- NAT Gateway
-- Azure Firewall
-- Application Gateway
-- Load Balancer
-- Azure Front Door
-- Traffic Manager
-- Private Endpoints
-- Virtual Network Gateways (VPN/ExpressRoute)
-- Route Tables
-- Private DNS Zones
-
-### **Security & Identity**
-- Key Vault
-- Managed Identities
-- Azure AD Domain Services
-
-### **Management & Monitoring**
-- Recovery Services Vault
-- Log Analytics Workspace
-- Application Insights
-- Azure Monitor
-- Automation Account
-
-### **Integration & Messaging**
-- Logic Apps
-- Event Hubs
-- Service Bus
-- Event Grid
-- API Management
-
-### **AI & Machine Learning**
-- Cognitive Services (AI Services)
-- Machine Learning Workspace
-- AI Search (Cognitive Search)
-
-### **Container & Registry**
-- Azure Container Registry (ACR)
-
-### **And 21+ additional resource types...**
+**Compute:** VMs, AKS, App Service, Functions, Container Apps, VMSS, AVS  
+**Databases:** Azure SQL, Managed Instance, MySQL Flexible, PostgreSQL Flexible, Cosmos DB  
+**Storage:** Storage Accounts, Azure NetApp Files, Managed Disks  
+**Networking:** VNets, NSGs, Public IPs, App Gateway, Load Balancer, Front Door, Traffic Manager, Firewall, Bastion, VPN/ExpressRoute Gateways, Private Endpoints, Private DNS  
+**Security:** Key Vault, Managed Identities  
+**Integration:** Logic Apps, Event Hubs, Service Bus, Event Grid, API Management  
+**Management:** Recovery Services Vaults, Log Analytics, Application Insights, Automation Accounts  
+**Containers:** Azure Container Registry  
+**AI/ML:** Cognitive Services, Machine Learning, AI Search  
 
 ---
 
 ## ⚠️ Limitations & Disclaimers
 
-### **Assessment Limitations**
-
-1. **Suggested Priorities, Not Final:**
-   - All P1/P2/P3/P4 priorities are **SUGGESTED** based on naming analysis
-   - Customer must validate actual business criticality with stakeholders
-   - Resource naming does not always reflect actual production status
-
-2. **Workload Tier Auto-Detection:**
-   - Detection is based on naming patterns and tags, not actual workload behavior
-   - **Low confidence classifications** (Production (Assumed)) require manual review
-   - Filter by `SA_TierConfidence = "Low"` to identify uncertain classifications
-
-3. **Not a Definitive DR Mandate:**
-   - This is **technical guidance** based on Azure best practices
-   - Customer to decide: which workloads require DR, acceptable RTO/RPO, DR region choice, implementation timeline, budget
-
-4. **Dev/Test Resources:**
-   - Resources in dev/test subscriptions marked as "Not Assessed"
-   - Customer to confirm whether DR is needed for these environments
-
-### **Qatar Central Constraints**
-
-1. **No Paired Region:**
-   - Qatar Central has NO Azure-designated paired region
-   - Native GRS/GZRS for Storage is NOT available
-   - Cross-Region Restore (CRR) for Recovery Services Vault is NOT available
-   - Customer must manually select DR region (West Europe, North Europe, UAE North, etc.)
-
-2. **Zone Redundancy Restricted:**
-   - One availability zone is at full capacity in Qatar Central
-   - Zone-redundant SKUs (ZRS, GZRS) are blocked or unavailable for many services
-   - **Do NOT rely solely on zone redundancy** — cross-region DR is mandatory
-
-3. **Azure Backup Region of Choice (RoC) — Preview:**
-   - RoC is a **PREVIEW feature** — confirm current availability with Microsoft account team
-   - Supported workloads: IaaS VM, SQL in VM, SAP HANA in VM, Azure Files
-   - NOT supported: PostgreSQL, AKS
-   - Target regions: Sweden Central or Switzerland North ONLY (NOT NIA-certified)
-
-4. **IaC Parity is Critical:**
-   - Per Microsoft Qatar BCDR Plan: "IaC parity is the MOST CRITICAL FACTOR for RTO"
-   - Without IaC, manual DR provisioning can take **days**
-   - ALL production infrastructure must be in Bicep, ARM, or Terraform
-
-### **Opting for DR**
-
-**Implementing DR is a customer decision.** Microsoft provides best practice guidance and technical support. The choice to implement, scope, or defer DR for any workload remains entirely with the customer.
-
-Factors to consider:
-- Business criticality and revenue impact
-- Acceptable downtime (RTO) and data loss (RPO)
-- Regulatory compliance requirements (Qatar PDPPL, NIA/NCSA)
-- Budget and resource availability
-- Operational complexity and support capability
+1. **All SA_ outputs are SUGGESTIONS.** Customer decides — tool advises.
+2. **Workload tier detection is based on naming patterns only.** Filter `SA_TierConfidence = "Low"` to review uncertain classifications.
+3. **LogicalZones / PhysicalZones empty for Qatar Central** — expected behavior. Qatar Central's AZs are not customer-accessible (one AZ at full capacity). See the VM_Zone_Planner legend row.
+4. **Azure Backup RoC is a preview feature.** Confirm current availability with your Microsoft account team before designing DR around it.
+5. **Zone redundancy alone is insufficient.** Zones protect against single-AZ failures only. Cross-region DR is always required for business-critical workloads.
+6. **Qatar Central has no paired region.** DR region selection is the customer's decision. The tool references West Europe as a common pattern but the customer must confirm.
 
 ---
 
 ## 📚 Version History
 
+### **Version 2.0** — April 2026
+
+**New Features:**
+- ✅ Microsoft-branded HTML dashboard (full design system overhaul)
+- ✅ 9 charts in dashboard (3 new: NonZonal breakdown, IaaS/PaaS/Platform, Subscription Risk Score)
+- ✅ Cross-region card redesigned as 4-category mutually exclusive breakdown table
+- ✅ P2_Actions and P3_Actions sheets added (16 sheets total, was 12)
+- ✅ VM_Zone_Planner yellow legend row explaining empty LogicalZones/PhysicalZones
+- ✅ Risk_Heatmap sheet (Subscription × Zone Status, 0–100 normalized risk score)
+- ✅ All SA_ columns now prefixed with `(Suggested)` / `(Estimated)` / `(Customer to confirm)`
+- ✅ `SA_ActionRequired` includes `⚠️ ADVISORY` preamble on every row
+- ✅ `SA_WorkloadTier` prefixed with `(Suggested)` — color-coded with 5 distinct tier colors
+- ✅ Advisory language throughout — no dictating, no mandatory statements
+- ✅ P2 and P3 counts shown in console output at completion
+
 ### **Version 1.0** — April 2026
 
-**Major Features:**
-- ✅ 2-phase automated assessment (Zone Redundancy + SA BCDR Recommendations)
-- ✅ Single-command execution wrapper (`Start-AzureBCDRAssessment.ps1`)
-- ✅ 12-sheet comprehensive Excel report with Qatar NIA/NCSA compliance
-- ✅ Smart workload tier classification (Production/Non-Prod/Dev-Test/Sandbox)
-- ✅ Cost-optimized DR strategy assignment per environment tier (96% cost reduction potential)
-- ✅ Priority & criticality methodology documentation (2-step process fully explained)
-- ✅ Interactive HTML dashboard with clickable BCDR report card
-- ✅ Dependency mapping from real environment data
+**Initial Release:**
+- ✅ 2-phase automated assessment framework
+- ✅ Single-command execution wrapper
+- ✅ 12-sheet Excel report with Qatar NIA/NCSA compliance
+- ✅ Smart workload tier classification (Production / Non-Prod / Dev-Test / Sandbox)
+- ✅ Priority & criticality methodology (2-step process)
+- ✅ Interactive HTML dashboard
+- ✅ Dependency mapping from live environment data
 - ✅ Compliance checklist with DPO sign-off tracking
-- ✅ BCDR_Strategy_Reference sheet with Qatar constraints and decision matrix
 - ✅ Azure Backup Region of Choice (RoC) preview support
-- ✅ Cross-region DR emphasis over availability zones
-- ✅ NIA/NCSA Certificate ID: 10018 validation for DR region selection
-
-**Framework Capabilities:**
-- Automated zone redundancy analysis across 54 resource types
-- Service-specific BCDR recommendations per resource type
-- Qatar Central constraints handling (no paired region, zone redundancy restrictions)
-- 4-priority workload tier detection hierarchy (subscription → tags → RG → resource name)
-- Timeline & phased implementation roadmap (Foundation → Quick Wins → P1 → P2/P3 → Testing)
-- Quarterly DR testing plan template with rollback procedures
-- All Azure resource tags included for advanced filtering
-
-**Developed By:**
-- Zahir Hussain Shah, Sr. Solution Engineer — Cloud & AI Infrastructure, Microsoft Qatar
 
 ---
 
 ## 📧 Support & Contact
 
-For questions, technical clarifications, or DR implementation support:
-
 - **Microsoft Account Team** — Engage your Microsoft Solution Architect or Customer Success Manager
-- **Automation Developer** — Zahir Hussain Shah, Microsoft Qatar
+- **Automation Developer** — Zahir Hussain Shah, Sr. Solution Engineer, Microsoft Qatar
 
 ---
 
@@ -1172,25 +413,11 @@ For questions, technical clarifications, or DR implementation support:
 
 ## 🙏 Acknowledgments
 
-This framework is based on:
 - **Microsoft Azure Qatar BCDR Plan** — Service-specific DR strategies and Qatar Central constraints
 - **Microsoft Azure Backup Region of Choice (RoC)** — Engineering Team Content
 - **Azure Well-Architected Framework** — BCDR best practices
-- **Microsoft NIA/NCSA Certification** — Qatar compliance requirements (Certificate ID: 10018)
+- **NIA/NCSA Certification** — Qatar compliance requirements (Certificate ID: 10018)
 
 ---
 
-**Build Version:** 1.0  
-**Last Updated:** April 2026  
-**Framework:** PowerShell 7 + Azure PowerShell + ImportExcel  
-**Tested With:** Azure PowerShell 11.x, ImportExcel 7.x
-
----
-
-## BCDR Planning and Assessment Automation Solution Developed by:
-
-**Zahir Hussain Shah**  
-Sr. Solution Engineer, Cloud & AI - Infrastructure  
-Microsoft Qatar
-
----
+**Build Version:** 2.0 | **Last Updated:** April 2026 | **Framework:** PowerShell 7 + Azure PowerShell + ImportExcel 7.x
