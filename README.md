@@ -199,26 +199,21 @@ Install-Module -Name ImportExcel      -Scope CurrentUser -Force
 
 ## ⚡ Quick Start
 
-### **Single-Command Execution (Recommended)**
+1. Download or clone all three scripts into the **same folder** on your machine
+2. Open **PowerShell 7** (`pwsh`) and navigate to that folder
+3. Run the single command below — the script will prompt you for your customer name and any required details
+
+### **Single-Command Execution**
 ```powershell
-.\Start-AzureBCDRAssessment.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
+.\Start-AzureBCDRAssessment.ps1
 ```
 
-This orchestrates both phases automatically:
-1. ✅ Authenticate to Azure
-2. ✅ Run Phase 1 — resource collection, zone analysis, HTML dashboard
-3. ✅ Run Phase 2 — BCDR enrichment, 16-sheet Excel report
-4. ✅ Update HTML dashboard with clickable report card
-5. ✅ Open HTML dashboard in browser
-
-### **Run Phases Individually**
-```powershell
-# Phase 1 only
-.\Phase1-CollectResources.ps1 -CustomerName "Your Organization" -TenantId "your-tenant-id"
-
-# Phase 2 only (requires Phase 1 output folder path)
-.\Phase2-AddRecommendations.ps1 -OutputPath ".\CompleteBCDRAssessment_YYYYMMDD_HHMMSS"
-```
+That's it. The script orchestrates everything automatically:
+1. ✅ Prompts for customer name and connects to Azure
+2. ✅ Collects all resources and analyses zone redundancy (Phase 1)
+3. ✅ Generates the HTML dashboard
+4. ✅ Builds the 16-sheet Excel BCDR report (Phase 2)
+5. ✅ Opens the dashboard in your browser when complete
 
 ### **Output Folder Structure**
 ```
